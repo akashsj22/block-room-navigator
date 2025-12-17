@@ -1,10 +1,10 @@
 building = {
-    1: ['101','102','104','105','106','107','108','109','110','111',],
-    2: ["Room 201", "Room 202", "Room 203", "Room 204"],
-    3: ["Room 301", "Room 302"],
-}
+    1: [101, 102, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 115, 116, 119, 120, 121, 122, 123,
+        124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142,
+        143, 144, 145, 146, 147, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 163, 164, 165, 168, 169, 170,
+        171, 172, 176]}
 
-print("🏢 Welcome to the Building Navigation System\n")
+print("🏢 Welcome to the PRP Navigation System\n")
 
 while True:
     print("----- FLOOR MENU -----")
@@ -12,26 +12,19 @@ while True:
         print(f"{floor}. Floor {floor}")
     print("0. Exit")
 
-    # Ask for floor
-    choice = int(input("\nEnter floor number: "))
+    floor_choice = int(input("\nEnter floor number: "))
 
-    if choice == 0:
+    if floor_choice == 0:
         print("Exiting... Goodbye!")
         break
 
-    if choice not in building:
-        print("❌ Invalid floor! Try again.\n")
+    if floor_choice not in building:
+        print("Invalid floor! Try again.\n")
         continue
 
-    # Show rooms on that floor
-    print(f"\nRooms available on Floor {choice}:")
-    for i, room in enumerate(building[choice], start=1):
-        print(f"{i}. {room}")
+    room_choice = int(input("Enter room number: "))
 
-    room_choice = int(input("\nEnter room number: "))
-
-    if 1 <= room_choice <= len(building[choice]):
-        selected_room = building[choice][room_choice - 1]
-        print(f"\n🛎️ Landing Page: You selected *{selected_room}* on Floor {choice}.\n")
+    if room_choice in building[floor_choice]:
+        print(f"\n Landing Page: You have selected {room_choice} on Floor {floor_choice}.\n")
     else:
-        print("❌ Invalid room selection! Try again.\n")
+        print("\nIn valid room selection in  this floor. Try again.\n")
