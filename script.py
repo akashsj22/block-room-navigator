@@ -4,7 +4,8 @@ building = {
         143, 144, 145, 146, 147, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 163, 164, 165, 168, 169, 170,
         171, 172, 176]}
 
-print("🏢 Welcome to the PRP Navigation System\n")
+print(" Welcome to the PRP Navigation System\n")
+
 
 while True:
     print("----- FLOOR MENU -----")
@@ -15,16 +16,18 @@ while True:
     floor_choice = int(input("\nEnter floor number: "))
 
     if floor_choice == 0:
-        print("Exiting... Goodbye!")
+        print("Exiting!")
         break
 
     if floor_choice not in building:
-        print("Invalid floor! Try again.\n")
+        print(" Floor is not available in the building")
         continue
 
     room_choice = int(input("Enter room number: "))
 
     if room_choice in building[floor_choice]:
-        print(f"\n Landing Page: You have selected {room_choice} on Floor {floor_choice}.\n")
+        print(f" You have selected {room_choice} on Floor {floor_choice}.\n")
     else:
-        print("\nIn valid room selection in  this floor. Try again.\n")
+        print("In valid room selection in  this floor. Try again.\n")
+
+    current_location = input("Tell me your current location. Which room are you close to?")
