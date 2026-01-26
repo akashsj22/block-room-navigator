@@ -8,7 +8,7 @@ print(" Welcome to the PRP Navigation System\n")
 
 
 while True:
-    print("----- FLOOR MENU -----")
+    print("FLOOR MENU")
     for floor in building:
         print(f"{floor}. Floor {floor}")
     print("0. Exit")

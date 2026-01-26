@@ -1,122 +1,151 @@
 import heapq
+import itertools
 from collections import defaultdict
 
-def room_to_pos(floor, room):
-    local = room - floor * 100 - 1
-    row = local // 10
-    col = local % 10
-    return row, col
 
-def get_room(floor, row, col):
-    return floor * 100 + row * 10 + col + 1
+ROOM_CLUSTERS = {
+    'Main Entrance': [115, 116],
+    'Block D': [172, 173, 174, 175, 176],
+    'Block C L1': [119, 120, 121, 122, 123, 124],
+    'Block C L2': [125, 126, 127, 128, 129, 130, 131],
+    'Block E': [132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145],
+    'Block A': [146, 147, 150, 159],
+    'CR1': [109, 110, 111, 112, 113],
+    'CR2': [104, 105, 106, 107, 108],
+    'Block F': ['F_WING'],
+    'Block B': ['B_WING']
+}
 
-def get_direction(curr, nxt):
-    cf, cr, cc = curr
-    nf, nr, nc = nxt
-    if cf != nf:
-        if (cr, cc) in elevator_positions:
-            return f"Take elevator to floor {nf}"
-        else:
-            return f"Take stairs {'up' if nf > cf else 'down'} to floor {nf}"
-    dr = nr - cr
-    dc = nc - cc
-    if abs(dr) + abs(dc) > 1:
-        return "Continue straight"
-    if dr == 1:
-        return "Go south"
-    elif dr == -1:
-        return "Go north"
-    elif dc == 1:
-        return "Go east"
-    elif dc == -1:
-        return "Go west"
-    return ""
+def build_building_graph():
+    graph = defaultdict(dict)
+    
+    # 1. Internal connections: Rooms within the same block
+    for block, rooms in ROOM_CLUSTERS.items():
+        numeric_rooms = sorted([r for r in rooms if isinstance(r, int)])
+        for i in range(len(numeric_rooms) - 1):
+            u, v = numeric_rooms[i], numeric_rooms[i+1]
+            graph[u][v] = 1
+            graph[v][u] = 1
 
-def dijkstra(graph, start, end):
-    queue = [(0, start)]
-    dist = {start: 0}
-    prev = {start: None}
+  
+    connections = [
+        # The Block C -> E Chain
+        (115, 119, 2),        # Main to C L1 (start of C L1)
+        (124, 125, 2),        # C L1 (end) to C L2 (start)
+        (131, 132, 2),        # C L2 (end) to Block E (start)
+        
+        # The CR -> Main -> D Chain
+        (116, 172, 3),        # Main to Block D
+        (115, 113, 3),        # Main to CR1
+        (109, 108, 1),        # CR1 to CR2 bridge
+        (104, 146, 3),        # CR2 to Block A
+        
+        # Other Main Hub connections
+        (115, 'F_WING', 2),
+        (115, 'B_WING', 2)
+    ]
+    
+    for u, v, w in connections:
+        graph[u][v] = w
+        graph[v][u] = w
+        
+    return graph
+
+
+def get_shortest_path(graph, start, end):
+    counter = itertools.count()
+    queue = [(0, next(counter), start)]
+    distances = {start: 0}
+    previous = {start: None}
+
     while queue:
-        d, u = heapq.heappop(queue)
+        current_dist, _, u = heapq.heappop(queue)
+
         if u == end:
             break
-        if d > dist.get(u, float('inf')):
+
+        if current_dist > distances.get(u, float('inf')):
             continue
-        for v, weight in graph[u].items():
-            alt = d + weight
-            if alt < dist.get(v, float('inf')):
-                dist[v] = alt
-                prev[v] = u
-                heapq.heappush(queue, (alt, v))
-    if end not in dist:
-        return None
+
+        if u in graph:
+            for v, weight in graph[u].items():
+                new_dist = current_dist + weight
+                if new_dist < distances.get(v, float('inf')):
+                    distances[v] = new_dist
+                    previous[v] = u
+                    heapq.heappush(queue, (new_dist, next(counter), v))
+
+    if end not in distances:
+        return None, 0
+
     path = []
-    u = end
-    while u is not None:
-        path.append(u)
-        u = prev.get(u)
-    return path[::-1]
+    curr = end
+    while curr is not None:
+        path.append(curr)
+        curr = previous.get(curr)
+        
+    return path[::-1], distances[end]
 
-num_floors = 5
-grid_size = 10
-graph = defaultdict(dict)
-stair_positions = [(0, 0), (0, 5), (5, 0), (5, 5), (9, 0), (9, 5)]
-elevator_positions = [(0, 9), (9, 9)]
 
-for floor in range(1, num_floors + 1):
-    for r in range(grid_size):
-        for c in range(1, grid_size):
-            node1 = (floor, r, c - 1)
-            node2 = (floor, r, c)
-            weight = 1 if abs(c - (c-1)) == 1 else 1.5
-            graph[node1][node2] = weight
-            graph[node2][node1] = weight
-    for c in range(grid_size):
-        for r in range(1, grid_size):
-            node1 = (floor, r - 1, c)
-            node2 = (floor, r, c)
-            weight = 1 if abs(r - (r-1)) == 1 else 1.5
-            graph[node1][node2] = weight
-            graph[node2][node1] = weight
+def identify_block(room_node):
+    for block_name, rooms in ROOM_CLUSTERS.items():
+        if room_node in rooms:
+            return block_name
+    return "Transition Area"
 
-for floor in range(1, num_floors):
-    for r, c in stair_positions:
-        node1 = (floor, r, c)
-        node2 = (floor + 1, r, c)
-        graph[node1][node2] = 10
-        graph[node2][node1] = 10
-    for r, c in elevator_positions:
-        node1 = (floor, r, c)
-        node2 = (floor + 1, r, c)
-        graph[node1][node2] = 5
-        graph[node2][node1] = 5
+def validate_room(room_node):
+    for rooms in ROOM_CLUSTERS.values():
+        if room_node in rooms:
+            return True
+    return False
 
-start_floor = int(input("Start floor: "))
-start_room = int(input("Start room: "))
-end_floor = int(input("End floor: "))
-end_room = int(input("End room: "))
 
-start_node = (start_floor,) + room_to_pos(start_floor, start_room)
-end_node = (end_floor,) + room_to_pos(end_floor, end_room)
+def main():
+    building_graph = build_building_graph()
+    
+    print("-" * 50)
+    print("      PRP CAMPUS NAVIGATION SYSTEM - V3.4")
+    print("-" * 50)
 
-path = dijkstra(graph, start_node, end_node)
+    while True:
+        print("\nOPTIONS: 1. Find Route | 2. View Blocks | 3. Exit")
+        user_choice = input("Action: ")
 
-if path is None:
-    print("No path found.")
-else:
-    print("Path:")
-    for node in path:
-        f, r, c = node
-        room = get_room(f, r, c)
-        print(f"Floor {f}, Room {room}")
-    print("\nDirections:")
-    prev_dir = ""
-    for i in range(len(path) - 1):
-        curr = path[i]
-        nxt = path[i + 1]
-        curr_room = get_room(curr[0], curr[1], curr[2])
-        direction = get_direction(curr, nxt)
-        if direction == "Continue straight" and prev_dir:
+        if user_choice == '3':
+            break
+
+        if user_choice == '2':
+            for b in ROOM_CLUSTERS.keys(): print(f"- {b}")
             continue
-        print(f"From Floor {curr[0]}, Room {curr_room}: {direction}")
-        prev_dir = direction if direction != "Continue straight" else prev_dir
+
+        if user_choice == '1':
+            start_in = input("Enter current room: ")
+            end_in = input("Enter target room: ")
+
+            start = int(start_in) if start_in.isdigit() else start_in
+            end = int(end_in) if end_in.isdigit() else end_in
+
+            if not validate_room(start) or not validate_room(end):
+                print("Error: Room not found.")
+                continue
+
+            path, total_weight = get_shortest_path(building_graph, start, end)
+
+            if path:
+                print("\n" + "="*40)
+                print(f"PATH: {start} to {end}")
+                print(f"Total Movement Units: {total_weight}")
+                print("="*40)
+
+                last_block = None
+                for i, node in enumerate(path):
+                    current_block = identify_block(node)
+                    if current_block != last_block:
+                        print(f"\n[ Entering {current_block} ]")
+                        last_block = current_block
+                    print(f" Step {i+1}: {node}")
+            else:
+                print("No path exists.")
+
+if __name__ == "__main__":
+    main()
