@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PRP Campus Navigator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
+      color: #1a1a2e;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: -0.5px;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+
+    label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+      margin-bottom: 16px;
+    }
+    input[type="text"]:focus { border-color: #4f46e5; }
+
+    button#find-btn {
+      width: 100%;
+      padding: 11px;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button#find-btn:hover { background: #4338ca; }
+    button#find-btn:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+    #error-msg {
+      color: #dc2626;
+      font-size: 0.85rem;
+      margin-top: 10px;
+      display: none;
+    }
+
+    /* Results */
+    #result-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+      margin-top: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      display: none;
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #eee;
+    }
+    .result-header h2 { font-size: 1rem; font-weight: 700; }
+    .badge {
+      background: #ede9fe;
+      color: #4f46e5;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+
+    .timeline { list-style: none; }
+    .timeline li {
+      position: relative;
+      padding-left: 28px;
+      margin-bottom: 10px;
+      font-size: 0.88rem;
+    }
+    .timeline li::before {
+      content: '';
+      position: absolute;
+      left: 9px;
+      top: 0;
+      bottom: -10px;
+      width: 2px;
+      background: #e5e7eb;
+    }
+    .timeline li:last-child::before { display: none; }
+    .timeline li .dot {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #d1d5db;
+      border: 2px solid #fff;
+    }
+    .timeline li.room .dot { background: #4f46e5; }
+    .timeline li.transit .dot { background: #f59e0b; }
+    .timeline li.first .dot, .timeline li.last .dot { background: #10b981; }
+
+    .block-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-top: 2px;
+    }
+    .transit-label {
+      font-weight: 600;
+      color: #b45309;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🏫 PRP Campus Navigator</h1>
+  <p class="subtitle">Enter room numbers to find the shortest path</p>
+
+  <div class="card">
+    <label for="start-input">From Room</label>
+    <input id="start-input" type="text" placeholder="e.g. 115" />
+
+    <label for="end-input">To Room</label>
+    <input id="end-input" type="text" placeholder="e.g. 422" />
+
+    <button id="find-btn">Find Route</button>
+    <p id="error-msg"></p>
+  </div>
+
+  <div id="result-card">
+    <div class="result-header">
+      <h2 id="route-title">Route</h2>
+      <span class="badge" id="weight-badge"></span>
+    </div>
+    <ul class="timeline" id="steps-list"></ul>
+  </div>
+
+  <script>
+    const btn       = document.getElementById('find-btn');
+    const errorMsg  = document.getElementById('error-msg');
+    const resultCard= document.getElementById('result-card');
+    const routeTitle= document.getElementById('route-title');
+    const weightBadge=document.getElementById('weight-badge');
+    const stepsList = document.getElementById('steps-list');
+
+    btn.addEventListener('click', async () => {
+      const start = document.getElementById('start-input').value.trim();
+      const end   = document.getElementById('end-input').value.trim();
+
+      if (!start || !end) {
+        showError('Please enter both rooms.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Finding…';
+      hideError();
+      resultCard.style.display = 'none';
+
+      try {
+        const res = await fetch(`/api/navigate?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.detail || 'Something went wrong.');
+          return;
+        }
+
+        renderResult(data);
+      } catch (e) {
+        showError('Could not reach the server.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Find Route';
+      }
+    });
+
+    function renderResult(data) {
+      routeTitle.textContent = `Room ${data.start} → Room ${data.end}`;
+      weightBadge.textContent = `${data.total_weight} units`;
+
+      stepsList.innerHTML = '';
+      const roomSteps = data.steps.filter(s => s.type === 'room');
+      data.steps.forEach((step, idx) => {
+        const li = document.createElement('li');
+        const dot = document.createElement('span');
+        dot.className = 'dot';
+        li.appendChild(dot);
+
+        if (step.type === 'transit') {
+          li.className = 'transit';
+          const span = document.createElement('span');
+          span.className = 'transit-label';
+          span.textContent = '⬆ ' + step.label;
+          li.appendChild(span);
+        } else {
+          // determine first / last room
+          const isFirst = (step.room === data.start || (idx === 0));
+          const isLast  = (step.room === data.end || (idx === data.steps.length - 1));
+          li.className = 'room' + (isFirst ? ' first' : '') + (isLast ? ' last' : '');
+
+          const name = document.createElement('span');
+          name.textContent = `Room ${step.room}`;
+          li.appendChild(name);
+
+          if (step.block) {
+            const bl = document.createElement('div');
+            bl.className = 'block-label';
+            bl.textContent = step.block;
+            li.appendChild(bl);
+          }
+        }
+
+        stepsList.appendChild(li);
+      });
+
+      resultCard.style.display = 'block';
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.style.display = 'block';
+    }
+    function hideError() {
+      errorMsg.style.display = 'none';
+    }
+  </script>
+</body>
+</html>
