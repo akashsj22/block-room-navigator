@@ -32,26 +32,26 @@ def build_steps(path: list) -> list:
     i = 0
     while i < len(path):
         node = path[i]
-        if isinstance(node, str) and node.startswith("Lift_F"):
+        if isinstance(node, str) and node.startswith("Lift_"):
             lift_nodes = []
-            while i < len(path) and isinstance(path[i], str) and path[i].startswith("Lift_F"):
+            while i < len(path) and isinstance(path[i], str) and path[i].startswith("Lift_"):
                 lift_nodes.append(path[i])
                 i += 1
-            from_floor = lift_nodes[0].replace("Lift_F", "F")
-            to_floor   = lift_nodes[-1].replace("Lift_F", "F")
+            from_floor = lift_nodes[0].split("_")[1]
+            to_floor   = lift_nodes[-1].split("_")[1]
             label = (
                 f"Take Lift (stay on {to_floor})"
                 if from_floor == to_floor
                 else f"Take Lift: {from_floor} → {to_floor}"
             )
             display_steps.append({"type": "transit", "label": label})
-        elif isinstance(node, str) and node.startswith("Stairs_F"):
+        elif isinstance(node, str) and node.startswith("Stairs_"):
             stair_nodes = []
-            while i < len(path) and isinstance(path[i], str) and path[i].startswith("Stairs_F"):
+            while i < len(path) and isinstance(path[i], str) and path[i].startswith("Stairs_"):
                 stair_nodes.append(path[i])
                 i += 1
-            from_floor = stair_nodes[0].replace("Stairs_F", "F")
-            to_floor   = stair_nodes[-1].replace("Stairs_F", "F")
+            from_floor = stair_nodes[0].split("_")[1]
+            to_floor   = stair_nodes[-1].split("_")[1]
             label = (
                 f"Use Stairs (stay on {to_floor})"
                 if from_floor == to_floor
